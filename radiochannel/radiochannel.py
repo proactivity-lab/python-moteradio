@@ -19,6 +19,7 @@ class RadioChannelChanger(object):
     def __init__(self, connection):
         self._connection = connection
         self._radio_channel = 0
+        self._set_channel = 0
         self._dispatcher = PacketDispatcher(0x80)
         self._dispatcher.register_receiver(self._receive)
         self._connection.register_dispatcher(self._dispatcher)
@@ -28,6 +29,7 @@ class RadioChannelChanger(object):
         return self._radio_channel
 
     def set(self, channel):
+        self._set_channel = channel
         p = Packet(0x80)
         p.payload = chr(self.DP_SET_PARAMETER_WITH_ID) \
                     + chr(len(self.PARAMETER_NAME)) \
@@ -47,6 +49,9 @@ class RadioChannelChanger(object):
 
                 self._last_boot = time.time() - uptime
 
+                if self._radio_channel != self._set_channel:
+                    self.set(self._set_channel)
+
             elif header == self.DP_PARAMETER:
                 fmt = "!BBBBB"
                 fmt_len = struct.calcsize(fmt)
@@ -56,6 +61,8 @@ class RadioChannelChanger(object):
                     if id == self.PARAMETER_NAME and v_len == 1:
                         self._radio_channel = ord(packet.payload[-1])
                         log.info("Radio channel is {:d}".format(self._radio_channel))
+                        if self._radio_channel != self._set_channel:
+                            self.set(self._set_channel)
                     else:
                         log.debug("Unexpected parameter {:s}: {:s}".format(id, packet.payload[fmt_len+id_len:]))
                 else:
