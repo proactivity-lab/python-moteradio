@@ -19,7 +19,7 @@ class RadioChannelChanger(object):
     def __init__(self, connection):
         self._connection = connection
         self._radio_channel = 0
-        self._set_channel = 0
+        self._set_channel = None
         self._dispatcher = PacketDispatcher(0x80)
         self._dispatcher.register_receiver(self._receive)
         self._connection.register_dispatcher(self._dispatcher)
@@ -30,13 +30,21 @@ class RadioChannelChanger(object):
 
     def set(self, channel):
         self._set_channel = channel
-        p = Packet(0x80)
-        p.payload = chr(self.DP_SET_PARAMETER_WITH_ID) \
-                    + chr(len(self.PARAMETER_NAME)) \
-                    + chr(1) \
-                    + self.PARAMETER_NAME \
-                    + chr(channel)
-        self._dispatcher.send(p)
+        if channel is not None:
+            p = Packet(0x80)
+            p.payload = chr(self.DP_SET_PARAMETER_WITH_ID) \
+                        + chr(len(self.PARAMETER_NAME)) \
+                        + chr(1) \
+                        + self.PARAMETER_NAME \
+                        + chr(channel)
+            self._dispatcher.send(p)
+        else:
+            log.debug("channel set to None")
+
+    def check_channel(self):
+        if self._set_channel is not None:
+            if self._radio_channel != self._set_channel:
+                self.set(self._set_channel)
 
     def _receive(self, packet):
         if len(packet.payload) > 0:
@@ -49,8 +57,7 @@ class RadioChannelChanger(object):
 
                 self._last_boot = time.time() - uptime
 
-                if self._radio_channel != self._set_channel:
-                    self.set(self._set_channel)
+                self.check_channel()
 
             elif header == self.DP_PARAMETER:
                 fmt = "!BBBBB"
@@ -61,8 +68,7 @@ class RadioChannelChanger(object):
                     if id == self.PARAMETER_NAME and v_len == 1:
                         self._radio_channel = ord(packet.payload[-1])
                         log.info("Radio channel is {:d}".format(self._radio_channel))
-                        if self._radio_channel != self._set_channel:
-                            self.set(self._set_channel)
+                        self.check_channel()
                     else:
                         log.debug("Unexpected parameter {:s}: {:s}".format(id, packet.payload[fmt_len+id_len:]))
                 else:
