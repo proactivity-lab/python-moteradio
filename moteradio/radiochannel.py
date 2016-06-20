@@ -1,13 +1,17 @@
-import time
+"""radiochannel.py: Mote radio channel changing functions."""
 
-__author__ = "Raido Pahtma"
-__license__ = "MIT"
+import time
 
 from moteconnection.packet import PacketDispatcher, Packet
 import struct
 
 import logging
 log = logging.getLogger(__name__)
+
+__author__ = "Raido Pahtma"
+__license__ = "MIT"
+
+version = "0.1.0.dev1"
 
 
 class RadioChannelChanger(object):
@@ -75,4 +79,4 @@ class RadioChannelChanger(object):
                     log.warning("Packet too short {:d}".format(len(packet.payload)))
 
             else:
-                log.debug("Unexpected header {:04X}".format(header))
+                log.debug("Unexpected header {:04X} for packet {}".format(header, packet.payload.encode("hex")))
